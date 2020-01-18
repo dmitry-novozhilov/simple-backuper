@@ -47,9 +47,18 @@ sub backup { run("perl ./backuper.pl ./test_data/test.conf.json ".shift) }
 sub restore { run("perl ./restore.pl --db ./test_data/test.db --from test_data/data --restore --to ./test_data/restored --name ".shift." --storage-path test_data/backup --proc-cmd 'gpg --decrypt 2>/dev/null | xz --decompress'") }
 
 sub check {	
+	die "stat of file '$_->[0]' differs:\nexpected: $_->[1]got:      $_->[2]" foreach grep {$_->[1] ne $_->[2]} 
+		map {[
+			$_,
+			`stat --format 'rights:%a type:%F group:%G user:%U mtime:%Y' test_data/data/$_`,
+			`stat --format 'rights:%a type:%F group:%G user:%U mtime:%Y' test_data/restored/$_`,
+		]}
+		qw(1 2);
 	die "file '$_' doesn't restored" foreach grep {! -e "./test_data/restored/$_"} (qw(1 2 symlink_to_2));
 	die $_ foreach map {`diff --brief test_data/data/$_ test_data/restored/$_`} (1, 2);
 	die "Symlink broken" if `readlink test_data/restored/symlink_to_2` ne "2\n";
+	
+	
 }
 
 sub run {

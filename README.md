@@ -28,8 +28,6 @@
 	// Command to prepare data to store.
 	// It must fetch source data in stdin and put ready-to-store data to stdout.
 	data_proc_before_store_cmd: "xz --compress -9 --stdout --memlimit=1GiB | gpg --encrypt -z 0 --recipient YOUR_KEY_NAME_HERE",
-	// If backup fails with memory error. But with this option backup will be longer time.
-	// "low_memory": 1,
 	// Paths to backup with priorities.
 	// For equal other conditions, files with a higher priority will be stored longer.
 	// Zero priority deprecate to backup files.

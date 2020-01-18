@@ -97,10 +97,14 @@ if($ARGS{to}) {
 					die "Unknown file '$from->{filepath}' mode $from->{mode}";
 				}
 				
-				chmod($from->{mode} & 07777, $to) or die "Can't chmod '$to': $!";
-				my $uid = getpwnam($from->{user}) or die "Can't chown to user '$from->{user}': user doesn't exists";
-				my $gid = getgrnam($from->{group}) or die "Can't chown to group '$from->{group}': group doesn't exists";
-				chown($uid, $gid, $to) or die "Can't chown '$to' to $from->{user}:$from->{group}: $!";
+				if(! S_ISLNK $from->{mode}) {
+					chmod($from->{mode} & 07777, $to) or die "Can't chmod '$to': $!";
+					my $uid = getpwnam($from->{user}) or die "Can't chown to user '$from->{user}': user doesn't exists";
+					my $gid = getgrnam($from->{group}) or die "Can't chown to group '$from->{group}': group doesn't exists";
+					chown($uid, $gid, $to) or die "Can't chown '$to' to $from->{user}:$from->{group}: $!";
+					utime($from->{atime}, $from->{mtime}, $to)
+						or die "Can't utime '$to' to atime=$from->{atime}, mtime=$from->{mtime}: $!";
+				}
 				
 				print "\n";
 			}

@@ -103,12 +103,8 @@ try {
 	warn report(error => "Backup failed: $_");
 };
 
-if($CONFIG->{low_memory}) {
-	$dbh->do("VACUUM");
-	$dbh->do("REINDEX");
-} else {
-	$dbh->sqlite_backup_to_file($DB_FILE);
-}
+$dbh->do("VACUUM");
+$dbh->do("REINDEX");
 
 { # копируем шифрованный архив sqlite базы в папку с бекапами
 	my $cmd = join(' | ',
@@ -203,7 +199,7 @@ sub proc_file {
 	elsif(S_ISREG $stat[2]) {
 		print "is regular file\t";
 		
-		$dbh->{AutoCommit} = 0 if $CONFIG->{low_memory};
+		$dbh->{AutoCommit} = 0;
 		
 		if($stat[7]) {
 			my $size_type;
@@ -412,7 +408,7 @@ sub proc_file {
 		$file_id = $dbh->sqlite_last_insert_rowid();
 	}
 	
-	$dbh->{AutoCommit} = 1 if $CONFIG->{low_memory};
+	$dbh->{AutoCommit} = 1;
 	
 	$_->[2] = $file_id foreach @next;
 	return @next;
@@ -451,15 +447,14 @@ sub init_config {
 
 use DBI;
 sub init_dbh {
-	$dbh = DBI->connect("dbi:SQLite:".($CONFIG->{low_memory} ? $DB_FILE : ':memory:'), "", "", {
+	$dbh = DBI->connect("dbi:SQLite:$DB_FILE", "", "", {
 		RaiseError => 1,
 		HandleError=> sub {
 			my($error_msg, $hdl, $failed) = @_;
 			croak $error_msg.($hdl->{Statement} ? "; statement $hdl->{Statement}" : '');
 		},
 	});
-	
-	$dbh->sqlite_backup_from_file($DB_FILE) if ! $CONFIG->{low_memory} and -e $DB_FILE;
+	$dbh->do("PRAGMA cache_size = 100000");
 	
 	$dbh->do("CREATE TABLE IF NOT EXISTS `backups` ( `name` TEXT NOT NULL, PRIMARY KEY(`name`) )");
 	$dbh->do("CREATE TABLE IF NOT EXISTS `files` (
