@@ -14,7 +14,7 @@
 - You can specify different priorities for any files.
 - For recover your backup you need only: access to storage host, your crypting keys and some backup options (see [Backuping](#backuping)).
 - Requires on storage host: ssh-server with support of standard commands (cat, mkdir, rm, etc...).
-- Requires on backuper host: perl, ssh-client, your favorite compress and crypt program (any linux distribution supports it, and cygwin too!).
+- Requires on backuper host: perl, ssh-client, your favorite compress and crypt program (any linux distribution supports it, ~~and cygwin too!~~).
 
 # Installing
 
@@ -84,8 +84,8 @@ Host my-backup-ssh-server
 - Select one of backup dirs
 - Start restoring: `pelr ./restore.pl --db ./simple-backuper.db --from YOUR_PATH --name BACKUP_NAME --restore --to PATH_ON_LOCAL_FILESYSTEM --storage-path my-backup-ssh-server:backup --proc-cmd 'gpg --decrypt 2>/dev/null | xz --decompress'`
 
-# Setup on cygwin
-- Install cygwin packages `git`, `xz` and `perl-Text-Glob`.
-- If you will using gpg, install gpg4win (you can find link on official gnupg site: https://gnupg.org/download/index.html).  
-When recovering you must serve running "kleopatra" - is a part of gpp4win.
-
+# ~~Setup on cygwin~~
+- ~~Install cygwin packages `git`, `xz` and `perl-Text-Glob`.~~
+- ~~If you will using gpg, install gpg4win (you can find link on official gnupg site: https://gnupg.org/download/index.html).  
+When recovering you must serve running "kleopatra" - is a part of gpp4win.~~
+- Cygwin doesn't supported now. Windows support is in progress.
