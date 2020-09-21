@@ -1,0 +1,304 @@
+#!/usr/bin/perl
+
+package App::SimpleBackuper;
+
+use strict;
+use warnings;
+use feature ':5.'.substr($], 3, 2);
+use Getopt::Long;
+use JSON::PP;
+use Try::Tiny;
+use Crypt::OpenSSL::RSA;
+use POSIX qw(strftime);
+use Data::Dumper;
+use Time::HiRes;
+use App::SimpleBackuper::DB;
+use App::SimpleBackuper::StorageLocal;
+use App::SimpleBackuper::StorageSFTP;
+use App::SimpleBackuper::Create;
+use App::SimpleBackuper::Info;
+use App::SimpleBackuper::RestoreDB;
+use App::SimpleBackuper::Restore;
+use App::SimpleBackuper::_format;
+
+
+$| = 1;
+
+# libcrypt-openssl-rsa-perl
+# libdigest-sha-perl
+# libnet-sftp-foreign-perl
+
+sub usage {
+	say foreach @_;
+	print foreach <DATA>;
+	exit -1;
+}
+
+GetOptions(
+	\my %options,
+	'cfg=s', 'db=s', 'backup-name=s', 'path=s', 'storage=s', 'destination=s', 'priv-key=s', 'write'
+) or usage();
+
+my $command = shift;
+
+$options{cfg} //= '~/.simple-backuper/config' if $command eq 'create';
+
+my %state = (profile => {total => - Time::HiRes::time});
+
+if($options{cfg}) {
+	$options{cfg} =~ s/^~/(getpwuid($>))[7]/e;
+	open(my $h, "<", $options{cfg}) or usage("Can't read config '$options{cfg}': $!");
+	my $config;
+	try {
+		$config = JSON::PP->new->utf8->relaxed(1)->decode(join('', <$h>));
+	} catch {
+		usage("Error while parsing json in config '$options{cfg}': $!");
+	};
+	close($h);
+	$options{$_} ||= $config->{$_} foreach qw(db storage compression_level public_key space_limit files);
+	
+	exists $options{compression_level} or usage("Config doesn't contains 'compression_level'");
+	$options{compression_level} =~ /^\d$/
+		and $options{compression_level} >= 1
+		and $options{compression_level} <= 9
+		or usage("Bad value of 'compression_level' in config. Must be 1 to 9");
+	
+	exists $options{public_key} or usage("Config doesn't contains 'public_key'");
+	$options{public_key} =~ s/^~/(getpwuid($>))[7]/e;
+	open($h, '<', $options{public_key}) or usage("Can't read public_key file '$options{public_key}': $!");
+	$state{rsa} = Crypt::OpenSSL::RSA->new_public_key( join('', <$h>) );
+	close($h);
+	
+	exists $options{space_limit} or usage("Config diesn't contains 'space_limit'");
+	if($options{space_limit} =~ /^(\d+)(k|m|g|t)$/i) {
+		$options{space_limit} = $1 * {k => 1e3, m => 1e6, g => 1e9, t => 1e12}->{lc $2};
+	} else {
+		usage("Bad value of space_limit ($options{space_limit}). It should be a number with K, M, G or T at the end");
+	}
+	
+	exists $options{files} or usage("Config doesn't contains 'files'");
+	ref($options{files}) eq 'HASH' or usage("'files' in config should be an object");
+	usage("File rule '$_' priority in config should be a number") foreach grep {$options{files}->{ $_ } !~ /^\d+$/} keys %{$options{files}};
+	{
+		my %files_rules;
+		while(my($mask, $priority) = each %{ $options{files} }) {
+			$mask =~ s/^~([^\/]*)/(getpwuid($1 ? getpwnam($1) : $<))[7]/e;
+			$mask =~ s/\/$//;
+			$files_rules{ $mask } = $priority;
+		}
+		$options{files} = \%files_rules;
+	}
+}
+
+{
+	$options{db} ||= '~/.simple-backuper/db';
+	$options{db} =~ s/^~/(getpwuid($>))[7]/e;
+	
+	if(-e $options{db}) {
+		print "Loading database...\t";
+		my $db_file = App::SimpleBackuper::RegularFile->new($options{db}, \%options);
+		$db_file->read();
+		print "decompressing...\t";
+		$db_file->decompress();
+		print "init...\t";
+		$state{profile}->{load_db} -= Time::HiRes::time();
+		$state{db} = App::SimpleBackuper::DB->new($db_file->data_ref);
+		$state{profile}->{load_db} += Time::HiRes::time();
+		print "OK\n";
+	} else {
+		$state{db} = App::SimpleBackuper::DB->new();
+	}
+}
+
+if($options{storage}) {
+	if($options{storage} =~ /^[^:]+:/) {
+		$state{storage} = App::SimpleBackuper::StorageSFTP->new( $options{storage} );
+	}
+	else {
+		$state{storage} = App::SimpleBackuper::StorageLocal->new( $options{storage} );
+	}
+}
+
+
+if(! $command) {
+	usage("Please specify a command");
+}
+elsif($command eq 'create') {
+	
+	exists $options{$_} or usage("Option --$_ is required for command create") foreach qw(cfg backup-name);
+	
+	App::SimpleBackuper::Create( \%options, \%state );
+	
+	$state{profile}->{total} += Time::HiRes::time;
+	printf "%s time spend: math - %s (crypt: %s, hash: %s, compress: %s), fs - %s, storage - %s\n",
+		fmt_time($state{profile}->{total}),
+		fmt_time($state{profile}->{math}),
+		fmt_time($state{profile}->{math_encrypt}),
+		fmt_time($state{profile}->{math_hash}),
+		fmt_time($state{profile}->{math_compress}),
+		fmt_time($state{profile}->{fs}),
+		fmt_time($state{profile}->{storage});
+		
+	if($state{fails}) {
+		print "Some files failed to backup:\n";
+		while(my($error, $list) = each %{ $state{fails} }) {
+			print "\t$error:\n";
+			print "\t\t$_\n" foreach @$list;
+		}
+	}
+}
+elsif($command eq 'info') {
+	use Fcntl ':mode'; # For S_ISDIR & same	
+	
+	@{ $state{db}->{backups} } or usage("Database file is not exists or empty. May be your backups database is located in backup storage. You can restore in here with 'restore-db' command");
+	
+	my $result = App::SimpleBackuper::Info(\%options, \%state);
+	
+	if($result->{error}) {
+		if($result->{error} eq 'NOT_FOUND') {
+			print "Path $options{path} wasn't found in backups.\n";
+		} else {
+			print "Unknown error $result->{error}.\n";
+		}
+		exit -1;
+	}
+	
+	if(@{ $result->{subfiles} }) {
+		print "Subfiles:\n";
+		App::SimpleBackuper::_print_table([
+			['name', 'oldest backup', 'newest backup'],
+			map {[ $_->{name}, $_->{oldest_backup}, $_->{newest_backup} ]} @{ $result->{subfiles} } ],
+			1,
+		);
+		print "\n";
+	} else {
+		print "No subfiles\n";
+	}
+	
+	if(@{ $result->{versions} }) {
+		print "Backuped versions of this file:\n";
+		App::SimpleBackuper::_print_table([
+				['rights', 'owner', 'group', 'size', 'mtime', 'backups'],
+				map {[
+					(
+						S_ISDIR($_->{mode}) ? 'd' :
+						S_ISLNK($_->{mode}) ? 'l' :
+						S_ISREG($_->{mode}) ? '-' :
+						'?'
+					)
+					.((S_IRUSR & $_->{mode}) ? 'r' : '-')
+					.((S_IWUSR & $_->{mode}) ? 'w' : '-')
+					.((S_IXUSR & $_->{mode}) ? 'x' : '-')
+					.((S_IRGRP & $_->{mode}) ? 'r' : '-')
+					.((S_IWGRP & $_->{mode}) ? 'w' : '-')
+					.((S_IXGRP & $_->{mode}) ? 'x' : '-')
+					.((S_IROTH & $_->{mode}) ? 'r' : '-')
+					.((S_IWOTH & $_->{mode}) ? 'w' : '-')
+					.((S_IXOTH & $_->{mode}) ? 'x' : '-')
+					,
+					$_->{user},
+					$_->{group},
+					$_->{size},
+					$_->{mtime},
+					join(', ', @{ $_->{backups} }),
+				]} @{ $result->{versions} }
+			],
+			1,
+		);
+	} else {
+		print "This files has no backuped versions";
+		print " (but it's subfiles has)" if @{ $result->{subfiles} };
+		print "\n";
+	}
+}
+elsif($command eq 'restore') {
+	
+	@{ $state{db}->{backups} } or usage("Database file is not exists or empty. May be your backups database is located in backup storage. You can restore in here with 'restore-db' command");
+	
+	$options{$_} or usage("Required option --$_ doesn't specified") foreach qw(path destination storage backup-name);
+	
+	my $result = App::SimpleBackuper::Info(\%options, \%state);
+	
+	if(! grep {$options{'backup-name'} eq $_} map {@{ $_->{backups} }} @{ $result->{versions} }) {
+		usage(qq|Backup named '$options{"backup-name"}' of path '$options{path}' was not found|);
+	}
+	
+	App::SimpleBackuper::Restore(\%options, \%state);
+}
+elsif($command eq 'restore-db') {
+	
+	! @{ $state{db}->{backups} }
+		or usage(qq|Database already exists and contains |.@{ $state{db}->{backups} }.qq| backups. |
+			.qq|If you want to rewrite database file with restored one, please delete current database file $options{db}|);
+	
+	$options{'priv-key'} or usage("Required option --priv-key doesn't specified");
+	
+	$options{storage} or usage("Required option --storage doesn't specified");
+	
+	open(my $h, '<', $options{'priv-key'}) or usage(qq|Can't read private key file '$options{"priv-key"}': $!|);
+	$state{rsa} = Crypt::OpenSSL::RSA->new_private_key( join('', <$h>) );
+	close($h);
+	
+	App::SimpleBackuper::RestoreDB(\%options, \%state);
+}
+# TODO: статистика: кол-во бекапов, кол-во бекапов без единого удалённого файла, % файлов в каждом бекапе
+elsif($command) {
+	usage("Unknown command $command");
+}
+
+
+__DATA__
+Usage: simple-backuper <COMMAND> [OPTIONS]
+
+COMMANDS:
+    create     - creates a new backup.              Required options: --backup-name. Possible: --cfg.
+    info       - prints info of files in backup.    Possible options: --db, --path, --cfg
+    restore    - restores files from backup.        Required options: --path, --backup-name, --storage, --destination.
+                                                    Possible options: --db, --write.
+    restore-db - fetch from storage & decrypt database. Required options: --storage --priv-key
+
+OPTIONS:
+    --cfg %path%            - path to config file (see below). (default is ~/.simple-backuper/config)
+    --db %path%             - path to db file. (by default using config value if possible, or ~/.simple-backuper/db otherwise)
+                              This file need for any operations. It copied to backup storage dir each creating backup time.
+    --backup-name %name%    - name of creating, listing or restoring backup.
+    --path %path%           - %path% of files in backup. (default: /)
+    --priv-key %path%	    - %path% to private key file for decryption.
+    --storage %path%        - %path% to storage dir. Remote SFTP path must begins with '%host%:'.
+    --destination %path%    - destination path to restore files.
+    --write                 - Without this option restoring use dry run.
+
+For EXAMPLES see README.md
+
+CONFIG file must be a json-file like this:
+{
+    "db":                   "~/.simple-backuper/db",        // This database file changes every new backup. It needs 
+    
+    "compression_level":    9,                              // LZMA algorythm supports levels 1 to 9
+    
+    "public_key":           "~/.simple-backuper/key.pub",   // This key using only with "create" command.
+                                                            // For decrypt with restore or listing commands you need
+                                                            // use private key of this public key.
+                                                            
+                                                            // Creating new pair of keys:
+                                                            // Private (for restoring): openssl genrsa -out ~/.simple-backuper/key 4096
+                                                            // Public (for backuping): openssl rsa -in ~/.simple-backuper/key -pubout > ~/.simple-backuper/key.pub
+    
+    "storage":              "/mnt/backups",                 // Use "host:path" or "user@host:path" for remote SFTP storage.
+                                                            // All transfered data already encrypted with crypt_key.
+    
+    "space_limit":          "100G",                         // Maximum of disc space on storage.
+                                                            // While this limit has bean reached,
+                                                            // simple-backuper deletes the oldest and lowest priority file.
+                                                            // K means kilobytes, M - megabytes, G - gygabytes, T - terabytes.
+    
+    "files": {                                              // Files globs with it's priorityes.
+        "~":                            5,
+        "~/.gnupg":                     50,                 // The higher the priority, the less likely it is to delete these files.
+        "~/.bash_history":              0,                  // Zero priority prohibits backup. Use it for exceptions.
+        "~/.cache":                     0,
+        "~/.local/share/Trash":         0,
+        "~/.mozilla/firefox/*/Cache":   0,
+        "~/.thumbnails":                0,
+    }
+}
