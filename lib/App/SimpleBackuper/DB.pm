@@ -53,24 +53,18 @@ sub new {
 	}
 	
 	
-	for my $q (0 .. $#{ $self->{backups} }) {
-		my $backup = $self->{backups}->unpack( $self->{backups}->[$q] );
-		$backup->{files_cnt} = 0;
-		$self->{backups}->[$q] = $self->{backups}->pack( $backup );
-	}
-	
+	my %backups_files_cnt = map {$self->{backups}->unpack($_)->{id} => 0} @{ $self->{backups} };
 	for my $q (0 .. $#{ $self->{files} }) {
 		my $file = $self->{files}->unpack( $self->{files}->[ $q ] );
+		
 		foreach my $version (@{ $file->{versions} }) {
 			
-			foreach my $part ( @{ $version->{parts} } ) {
-				$self->{parts}->upsert({hash => $part->{hash}}, $part);
+			foreach my $backup_id ( $version->{backup_id_min} .. $version->{backup_id_max} ) {
+				$backups_files_cnt{ $backup_id }++;
 			}
 			
-			for my $backup_id ( $version->{backup_id_min} .. $version->{backup_id_max} ) {
-				my $backup = $self->{backups}->find_row({ id => $backup_id });
-				$backup->{files_cnt}++;
-				$self->{backups}->upsert({ id => $backup_id }, $backup );
+			foreach my $part ( @{ $version->{parts} } ) {
+				$self->{parts}->upsert({hash => $part->{hash}}, {%$part, block_id => $version->{block_id}});
 			}
 			
 			my $block = $self->{blocks}->find_row({ id => $version->{block_id} });
@@ -89,6 +83,12 @@ sub new {
 				$self->{blocks}->upsert({ id => $version->{block_id} }, $block);
 			}
 		}
+	}
+	
+	while(my($backup_id, $files_cnt) = each %backups_files_cnt) {
+		my $backup = $self->{backups}->find_row({ id => $backup_id });
+		$backup->{files_cnt} = $files_cnt;
+		$self->{backups}->upsert({ id => $backup_id }, $backup );
 	}
 	
 	return $self;

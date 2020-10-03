@@ -11,7 +11,7 @@ sub pack {
 	
 	my $p = $self->packer();
 	
-	$p->pack(h => 128	=> $data->{hash});
+	$p->pack(H => 128	=> $data->{hash});
 	if(exists $data->{size}) {
 		$p->pack(J => 1	=> $data->{size});
 		$p->pack(J => 1	=> $data->{block_id} // 0);

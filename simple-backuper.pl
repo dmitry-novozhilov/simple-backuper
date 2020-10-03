@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-package App::SimpleBackuper;
-
 use strict;
 use warnings;
 use feature ':5.'.substr($], 3, 2);
@@ -15,12 +13,12 @@ use Time::HiRes;
 use App::SimpleBackuper::DB;
 use App::SimpleBackuper::StorageLocal;
 use App::SimpleBackuper::StorageSFTP;
-use App::SimpleBackuper::Create;
+use App::SimpleBackuper::Backup;
 use App::SimpleBackuper::Info;
 use App::SimpleBackuper::RestoreDB;
 use App::SimpleBackuper::Restore;
+use App::SimpleBackuper::StorageCheck;
 use App::SimpleBackuper::_format;
-
 
 $| = 1;
 
@@ -36,12 +34,12 @@ sub usage {
 
 GetOptions(
 	\my %options,
-	'cfg=s', 'db=s', 'backup-name=s', 'path=s', 'storage=s', 'destination=s', 'priv-key=s', 'write'
+	'cfg=s', 'db=s', 'backup-name=s', 'path=s', 'storage=s', 'destination=s', 'priv-key=s', 'write', 'verbose', 'quiet'
 ) or usage();
 
 my $command = shift;
 
-$options{cfg} //= '~/.simple-backuper/config' if $command eq 'create';
+$options{cfg} //= '~/.simple-backuper/config' if grep {$command eq $_} qw(backup info storage-check storage-fix);
 
 my %state = (profile => {total => - Time::HiRes::time});
 
@@ -95,16 +93,16 @@ if($options{cfg}) {
 	$options{db} =~ s/^~/(getpwuid($>))[7]/e;
 	
 	if(-e $options{db}) {
-		print "Loading database...\t";
+		print "Loading database...\t" if $options{verbose};
 		my $db_file = App::SimpleBackuper::RegularFile->new($options{db}, \%options);
 		$db_file->read();
-		print "decompressing...\t";
+		print "decompressing...\t" if $options{verbose};
 		$db_file->decompress();
-		print "init...\t";
+		print "init...\t" if $options{verbose};
 		$state{profile}->{load_db} -= Time::HiRes::time();
 		$state{db} = App::SimpleBackuper::DB->new($db_file->data_ref);
 		$state{profile}->{load_db} += Time::HiRes::time();
-		print "OK\n";
+		print "OK\n" if $options{verbose};
 	} else {
 		$state{db} = App::SimpleBackuper::DB->new();
 	}
@@ -123,27 +121,49 @@ if($options{storage}) {
 if(! $command) {
 	usage("Please specify a command");
 }
-elsif($command eq 'create') {
+elsif($command eq 'storage-check') {
+	App::SimpleBackuper::StorageCheck(\%options, \%state);
+}
+elsif($command eq 'storage-fix') {
+	App::SimpleBackuper::StorageCheck(\%options, \%state, 1);
+}
+elsif($command eq 'backup') {
 	
-	exists $options{$_} or usage("Option --$_ is required for command create") foreach qw(cfg backup-name);
+	exists $options{$_} or usage("Option --$_ is required for command backup") foreach qw(cfg backup-name);
 	
-	App::SimpleBackuper::Create( \%options, \%state );
+	App::SimpleBackuper::StorageCheck(\%options, \%state);
+	
+	App::SimpleBackuper::Backup(\%options, \%state);
 	
 	$state{profile}->{total} += Time::HiRes::time;
-	printf "%s time spend: math - %s (crypt: %s, hash: %s, compress: %s), fs - %s, storage - %s\n",
-		fmt_time($state{profile}->{total}),
-		fmt_time($state{profile}->{math}),
-		fmt_time($state{profile}->{math_encrypt}),
-		fmt_time($state{profile}->{math_hash}),
-		fmt_time($state{profile}->{math_compress}),
-		fmt_time($state{profile}->{fs}),
-		fmt_time($state{profile}->{storage});
+	if(! $options{quiet}) {
+		printf "%s time spend: math - %s (crypt: %s, hash: %s, compress: %s), fs - %s, storage - %s\n",
+			fmt_time($state{profile}->{total}),
+			fmt_time($state{profile}->{math}),
+			fmt_time($state{profile}->{math_encrypt}),
+			fmt_time($state{profile}->{math_hash}),
+			fmt_time($state{profile}->{math_compress}),
+			fmt_time($state{profile}->{fs}),
+			fmt_time($state{profile}->{storage});
+	}
 		
 	if($state{fails}) {
 		print "Some files failed to backup:\n";
 		while(my($error, $list) = each %{ $state{fails} }) {
 			print "\t$error:\n";
 			print "\t\t$_\n" foreach @$list;
+		}
+	}
+	
+	if(! $options{quiet}) {
+		if($state{longest_files}) {
+			print "Top ".@{ $state{longest_files} }." longest files:\n";
+			printf "% 10s\t%s\n", fmt_time($_->{time}), $_->{path} foreach @{ $state{longest_files} };
+		}
+		
+		if($state{heaviweightest_files}) {
+			print "Top ".@{ $state{heaviweightest_files} }." heaviweightest files:\n";
+			printf "% 10s\t%s\n", fmt_weight($_->{weight}), $_->{path} foreach @{ $state{longheaviweightest_filesest_files} };
 		}
 	}
 }
@@ -251,11 +271,13 @@ __DATA__
 Usage: simple-backuper <COMMAND> [OPTIONS]
 
 COMMANDS:
-    create     - creates a new backup.              Required options: --backup-name. Possible: --cfg.
-    info       - prints info of files in backup.    Possible options: --db, --path, --cfg
-    restore    - restores files from backup.        Required options: --path, --backup-name, --storage, --destination.
-                                                    Possible options: --db, --write.
-    restore-db - fetch from storage & decrypt database. Required options: --storage --priv-key
+    backup        - creates a new backup.              Required options: --backup-name. Possible: --cfg.
+    info          - prints info of files in backup.    Possible options: --db, --path, --cfg
+    restore       - restores files from backup.        Required options: --path, --backup-name, --storage, --destination.
+                                                       Possible options: --db, --write.
+    restore-db    - fetch from storage & decrypt database. Required options: --storage --priv-key
+	storage-check - check for existents all data on storage with local database.                    Possible option: --cfg
+	storage-fix   - fix local database for loosen data and remove unknown extra files from storage. Possible option: --cfg
 
 OPTIONS:
     --cfg %path%            - path to config file (see below). (default is ~/.simple-backuper/config)
@@ -276,7 +298,7 @@ CONFIG file must be a json-file like this:
     
     "compression_level":    9,                              // LZMA algorythm supports levels 1 to 9
     
-    "public_key":           "~/.simple-backuper/key.pub",   // This key using only with "create" command.
+    "public_key":           "~/.simple-backuper/key.pub",   // This key using only with "backup" command.
                                                             // For decrypt with restore or listing commands you need
                                                             // use private key of this public key.
                                                             

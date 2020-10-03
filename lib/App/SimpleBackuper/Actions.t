@@ -9,7 +9,7 @@ use File::Path qw(make_path);
 use Data::Dumper;
 use App::SimpleBackuper::DB;
 use App::SimpleBackuper::StorageLocal;
-use App::SimpleBackuper::Create;
+use App::SimpleBackuper::Backup;
 use App::SimpleBackuper::Info;
 use App::SimpleBackuper::RestoreDB;
 use App::SimpleBackuper::Restore;
@@ -42,6 +42,7 @@ it 'most common workflow' => sub {
 			'/tmp/simple-backuper-test/src'	=> 5,
 		},
 		'backup-name'		=> 'test',
+		quiet				=> 1,
 	);
 	
 	my %state = (
@@ -50,7 +51,7 @@ it 'most common workflow' => sub {
 		storage	=> App::SimpleBackuper::StorageLocal->new('/tmp/simple-backuper-test/storage'),
 	);
 	
-	App::SimpleBackuper::Create(\%options, \%state);
+	App::SimpleBackuper::Backup(\%options, \%state);
 	
 	ok -f '/tmp/simple-backuper-test/db';
 	
@@ -58,7 +59,7 @@ it 'most common workflow' => sub {
 	unlink '/tmp/simple-backuper-test/db';
 	
 	App::SimpleBackuper::RestoreDB(
-		{db => '/tmp/simple-backuper-test/db'},
+		{db => '/tmp/simple-backuper-test/db', quiet => 1},
 		{
 			rsa		=> Crypt::OpenSSL::RSA->new_private_key($priv_key),
 			storage	=> App::SimpleBackuper::StorageLocal->new('/tmp/simple-backuper-test/storage'),
@@ -94,6 +95,7 @@ it 'most common workflow' => sub {
 		path				=> '/tmp/simple-backuper-test/src',
 		destination			=> '/tmp/simple-backuper-test/dst',
 		write				=> 1,
+		quiet				=> 1,
 	}, \%state)->{error};
 	
 	ok -f '/tmp/simple-backuper-test/dst/a.file';
@@ -110,7 +112,7 @@ it 'most common workflow' => sub {
 	print $fh "2";
 	close($fh);
 	
-	App::SimpleBackuper::Create({%options, 'backup-name' => 'test2'}, \%state);
+	App::SimpleBackuper::Backup({%options, 'backup-name' => 'test2'}, \%state);
 	
 	ok ! App::SimpleBackuper::Restore({
 		db					=> '/tmp/simple-backuper-test/db',
@@ -118,6 +120,7 @@ it 'most common workflow' => sub {
 		path				=> '/tmp/simple-backuper-test/src',
 		destination			=> '/tmp/simple-backuper-test/dst',
 		write				=> 1,
+		quiet				=> 1,
 	}, \%state)->{error};
 	
 	open($fh, '<', '/tmp/simple-backuper-test/dst/a.file') or die "Can't read test file: $!";
@@ -132,6 +135,7 @@ it 'most common workflow' => sub {
 		path				=> '/tmp/simple-backuper-test/src',
 		destination			=> '/tmp/simple-backuper-test/dst',
 		write				=> 1,
+		quiet				=> 1,
 	}, \%state)->{error};
 	
 	open($fh, '<', '/tmp/simple-backuper-test/dst/a.file') or die "Can't read test file: $!";
@@ -146,13 +150,13 @@ it 'most common workflow' => sub {
 	print $fh "3" x 1_000_000;
 	close($fh);
 	
-	App::SimpleBackuper::Create({%options, 'backup-name' => 'test3'}, \%state);
+	App::SimpleBackuper::Backup({%options, 'backup-name' => 'test3'}, \%state);
 	
 	open($fh, '>', '/tmp/simple-backuper-test/src/a.file') or die "Can't write test file: $!";
 	print $fh "3";
 	close($fh);
 	
-	App::SimpleBackuper::Create({%options, space_limit => 700, 'backup-name' => 'test4'}, \%state);
+	App::SimpleBackuper::Backup({%options, space_limit => 700, 'backup-name' => 'test4'}, \%state);
 };
 
 1;

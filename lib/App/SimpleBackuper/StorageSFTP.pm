@@ -9,10 +9,6 @@ sub new {
 	my($class, $options) = @_;
 	my(undef, $user, $host, $path) = $options =~ /^(([^@]+)@)?([^:]+):(.*)$/;
 	
-	my $sftp = Net::SFTP::Foreign->new(host => $host, ($user ? (user => $user) : ()));
-	$sftp->die_on_error("SFTP connect error");
-	$sftp->setcwd($path) or die "Can't setcwd to '$path': ".$sftp->error;
-	
 	my $self = bless {user => $user, host => $host, path => $path} => $class;
 	$self->_connect();
 	
@@ -41,7 +37,7 @@ sub _do {
 			$self->{sftp}->die_on_error("Can't $method (status=".$self->{sftp}->status.")");
 		}
 	}
-	return @result;
+	return \@result;
 }
 
 sub put {
@@ -52,13 +48,19 @@ sub put {
 
 sub get {
 	my($self, $name) = @_;
-	return \$self->_do(get_content => [ $name ]);
+	return $self->_do(get_content => [ $name ]);
 }
 
 sub remove {
 	my($self, $name) = @_;
 	$self->_do(remove => [ $name ]);
 	return $self;
+}
+
+sub listing {
+	my($self) = @_;
+	my $files = $self->_do(ls => [ '' ])->[0];
+	return { map {$_->{filename} => $_->{a}->size} grep {$_->{filename} ne '..' and $_->{filename} ne '.'} @$files };
 }
 
 1;

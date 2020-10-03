@@ -29,7 +29,7 @@ sub get {
 	my $content = join('', <$fh>);
 	close $fh;
 	
-	return \$content;
+	return [$content];
 }
 
 sub remove {
@@ -38,6 +38,19 @@ sub remove {
 	unlink("$self->{path}/$name") or die "Can't remove $self->{path}/$name: $!";
 	
 	return $self;
+}
+
+sub listing {
+	my($self) = @_;
+	my %listing;
+	opendir(my $dh, $self->{path}) or die "Can't open directory '$self->{path}': $!";
+	while(my $file = readdir($dh)) {
+		next if $file eq '..' or $file eq '.';
+		$listing{ $file } = -s "$self->{path}/$file";
+	}
+	closedir($dh);
+	
+	return \%listing;
 }
 
 1;

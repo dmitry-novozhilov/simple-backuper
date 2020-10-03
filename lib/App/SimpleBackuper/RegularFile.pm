@@ -176,6 +176,7 @@ sub data_ref {
 	my $self = shift;
 	if(@_) {
 		$self->{data} = shift;
+		confess if ref($self->{data}) ne 'SCALAR';
 		$self->{data} = ${ $self->{data} };
 		return $self;
 	} else {

@@ -28,34 +28,34 @@ sub Restore {
 	
 	_proc_file($options, $state, $file, join('/', @cur_path) || '/', $options->{destination});
 	
-	print "Backup '$options->{'backup-name'}' was successful restored.\n";
+	print "Backup '$options->{'backup-name'}' was successful restored.\n" if ! $options->{quiet};
 	
 	return {};
 }
 
 sub _restore_part {
-	my($reg_file, $storage, $part, $number) = @_;
+	my($options, $reg_file, $storage, $part, $number) = @_;
 	
-	$reg_file->data_ref($storage->get(fmt_hex2base64($part->{hash})));
-	print "fetched, ";
+	$reg_file->data_ref(\$storage->get(fmt_hex2base64($part->{hash}))->[0]);
+	print "fetched, " if $options->{verbose};
 	$reg_file->decrypt($part->{aes_key}, $part->{aes_iv});
-	print "decrypted, ";
+	print "decrypted, " if $options->{verbose};
 	my $ratio = $reg_file->decompress();
-	printf "decompressed (x%d)", 1 / $ratio;
+	printf "decompressed (x%d)", 1 / (1e-6 + $ratio) if $options->{verbose};
 	$reg_file->write($number);
-	print " and restored.\n";
+	print " and restored.\n" if $options->{verbose};
 }
 
 sub _proc_file {
 	my($options, $state, $file, $backup_path, $fs_path) = @_;
 	
-	print "$backup_path\n";
+	print "$backup_path -> $fs_path\n" if $options->{verbose};
 	
 	
 	my($version) = grep {$_->{backup_id_min} <= $state->{backup_id} and $_->{backup_id_max} >= $state->{backup_id}}
 		@{ $file->{versions} };
 	if(! $version) {
-		print "\tnot exists in this backup.\n";
+		print "\tnot exists in this backup.\n" if $options->{verbose};
 		return;
 	}
 	
@@ -70,7 +70,7 @@ sub _proc_file {
 		my $need2mkdir;
 		if(@stat) {
 			if(! S_ISDIR $stat[2]) {
-				print "\tin backup it's dir but on FS it's not.\n";
+				print "\tin backup it's dir but on FS it's not.\n" if $options->{verbose};
 				unlink $fs_path if $options->{write};
 				$need2mkdir = 1;
 			}
@@ -91,12 +91,12 @@ sub _proc_file {
 			if(S_ISLNK $stat[2]) {
 				my $symlink_to = readlink($fs_path) // die "Can't read symlink $fs_path: $!";
 				if($symlink_to ne $version->{symlink_to}) {
-					print "\tin backup this symlink refers to $version->{symlink_to} but on FS - to $symlink_to.\n";
+					print "\tin backup this symlink refers to $version->{symlink_to} but on FS - to $symlink_to.\n" if $options->{verbose};
 					unlink $fs_path if $options->{write};
 					$need2link = 1;
 				}
 			} else {
-				print "\tin backup it's a symlink but on FS it's not.\n";
+				print "\tin backup it's a symlink but on FS it's not.\n" if $options->{verbose};
 				unlink $fs_path if $options->{write};
 				$need2link = 1;
 			}
@@ -119,26 +119,26 @@ sub _proc_file {
 				my $reg_file = App::SimpleBackuper::RegularFile->new($fs_path, $options);
 				my $file_writer;
 				if($stat[7] != $version->{size}) {
-					print "\tin backup it's file with size ".fmt_weight($version->{size}).", but on FS - ".fmt_weight($version->{size}).".\n";
+					print "\tin backup it's file with size ".fmt_weight($version->{size}).", but on FS - ".fmt_weight($version->{size}).".\n" if $options->{verbose};
 					$reg_file->truncate($version->{size}) if $options->{write};
 				}
 				for my $part_number (0 .. $#{ $version->{parts} }) {
 					$reg_file->read($part_number);
 					my $fs_hash = $reg_file->hash;
 					if($fs_hash eq $version->{parts}->[ $part_number ]->{hash}) {
-						print "\tpart #$part_number hash is ".fmt_hex2base64($fs_hash)." (OK)\n"
+						print "\tpart #$part_number hash is ".fmt_hex2base64($fs_hash)." (OK)\n" if $options->{verbose};
 					}
 					else {
-						print "\tpart#$part_number in backup has hash ".fmt_hex2base64($version->{parts}->[ $part_number ]->{hash}).", but on FS - ".fmt_hex2base64($fs_hash).": ";
+						print "\tpart#$part_number in backup has hash ".fmt_hex2base64($version->{parts}->[ $part_number ]->{hash}).", but on FS - ".fmt_hex2base64($fs_hash).": " if $options->{verbose};
 						if($options->{write}) {
-							_restore_part($reg_file, $state->{storage}, $version->{parts}->[ $part_number ], $part_number);
+							_restore_part($options, $reg_file, $state->{storage}, $version->{parts}->[ $part_number ], $part_number);
 						} else {
-							print "\twill be restored\n";
+							print "\twill be restored\n" if $options->{verbose};
 						}
 					}
 				}
 			} else {
-				print "\tin backup it's a regular file, but on FS it's not.\n";
+				print "\tin backup it's a regular file, but on FS it's not.\n" if $options->{verbose};
 				$need2rewrite_whole_file = 1;
 				unlink $fs_path if $options->{write};
 			}
@@ -150,11 +150,11 @@ sub _proc_file {
 			if($options->{write}) {
 				my $reg_file = App::SimpleBackuper::RegularFile->new($fs_path, $options, $state);
 				for my $part_number (0 .. $#{ $version->{parts} }) {
-					print "\tpart #$part_number: ";
-					_restore_part($reg_file, $state->{storage}, $version->{parts}->[ $part_number ], $part_number);
+					print "\tpart #$part_number hash is ".fmt_hex2base64($version->{parts}->[ $part_number ]->{hash}).": " if $options->{verbose};
+					_restore_part($options, $reg_file, $state->{storage}, $version->{parts}->[ $part_number ], $part_number);
 				}
 			} else {
-				print "\tfile will be restored.\n";
+				print "\tfile will be restored.\n" if $options->{verbose};
 			}
 			$fs_user = scalar getpwuid $<;
 			$fs_group = scalar getgrgid $(;
@@ -163,7 +163,7 @@ sub _proc_file {
 	
 	
 	if(! @stat or $stat[2] != $version->{mode}) {
-		printf "\tin backup it has mode %o but on FS - %o.\n", $version->{mode}, $stat[2] // 0;
+		printf "\tin backup it has mode %o but on FS - %o.\n", $version->{mode}, $stat[2] // 0 if $options->{verbose};
 		if($options->{write}) {
 			chmod($version->{mode}, $fs_path) or die sprintf("Can't chmod %s to %o: %s", $fs_path, $version->{mode}, $!);
 		}
@@ -180,7 +180,7 @@ sub _proc_file {
 		@{ $state->{db}->{uids_gids} }
 		;
 	if($fs_user ne $db_user or $fs_group ne $db_group) {
-		print "\tin backup it owned by $db_user:$db_group but on FS - by $fs_user:$fs_group.\n";
+		print "\tin backup it owned by $db_user:$db_group but on FS - by $fs_user:$fs_group.\n" if $options->{verbose};
 		chown scalar(getpwnam $db_user), scalar getgrnam($db_group), $fs_path if $options->{write};
 	}
 	
