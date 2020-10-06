@@ -2,7 +2,7 @@ package App::SimpleBackuper::RegularFile;
 
 use strict;
 use warnings;
-use Fcntl;
+use Fcntl qw(:DEFAULT :flock);
 use Carp;
 
 sub new {
@@ -33,11 +33,12 @@ sub new {
 	return $self;
 }
 
-sub _write_mode {
+sub set_write_mode {
 	my($self) = @_;
 	return if $self->{writable};
 	
 	sysopen(my $handler, $self->{filepath}, O_RDWR|O_CREAT) or die "$!\n";
+	flock($handler, LOCK_EX|LOCK_NB) or die "$!\n";
 	$self->{writable} = 1;
 	$self->{handler} = $handler;
 	sysseek($handler, $self->{offset}, 0) // die "$!\n";
@@ -48,7 +49,7 @@ sub _num2offset { ! $_[0] ? 0 : $_[0] < 3 ? 10 ** ($_[0] - 1) * 1e6 : ($_[0] - 2
 sub read {
 	my($self, $num) = @_;
 	
-	die "File doesn't exists" if ! $self->{readable};
+	confess "File '$self->{filepath}' doesn't exists" if ! $self->{readable};
 	
 	$self->{data} = '';
 	if(! defined $num) {
@@ -74,7 +75,7 @@ sub read {
 sub write {
 	my($self, $num) = @_;
 	
-	$self->_write_mode();
+	$self->set_write_mode();
 	
 	if(! defined $num) {
 		# TODO: замерить время FS
@@ -186,7 +187,7 @@ sub data_ref {
 
 sub truncate {
 	my($self, $size) = @_;
-	$self->_write_mode();
+	$self->set_write_mode();
 	truncate($self->{handler}, $size) // die "$!\n";
 	return $self;
 }

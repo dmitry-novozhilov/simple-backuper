@@ -18,7 +18,7 @@ sub new {
 sub _connect {
 	my($self) = @_;
 	
-	$self->{sftp} = Net::SFTP::Foreign->new(host => $self->{host}, ($self->{user} ? (user => $self->{user}) : ()));
+	$self->{sftp} = Net::SFTP::Foreign->new(host => $self->{host}, ($self->{user} ? (user => $self->{user}) : ()), timeout => 30);
 	$self->{sftp}->die_on_error("SFTP connect error");
 	$self->{sftp}->setcwd($self->{path}) or die "Can't setcwd to '$self->{path}': ".$self->{sftp}->error;
 }
@@ -27,9 +27,10 @@ sub _do {
 	my($self, $method, $params) = @_;
 	my $attempts_left = 3;
 	my @result;
-	while($attempts_left--) {
-		last if @result = $self->{sftp}->$method(@$params);
-		if($self->{sftp}->status == SSH2_FX_CONNECTION_LOST and $attempts_left) {
+	while(1) {
+		@result = $self->{sftp}->$method(@$params);
+		last if @result and defined $result[0];
+		if($self->{sftp}->status == SSH2_FX_CONNECTION_LOST and $attempts_left--) {
 			print " (".$self->{sftp}->error.", reconnecting)";
 			sleep 30;
 			$self->_connect();

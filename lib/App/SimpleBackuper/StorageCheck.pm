@@ -13,7 +13,7 @@ sub StorageCheck {
 	my $listing = $state->{storage}->listing();
 	print keys(%$listing)." files done\n";
 	
-	if(! exists $listing->{db} or ! exists $listing->{'db.key'}) {
+	if(@{ $state->{db}->{backups} } and (! exists $listing->{db} or ! exists $listing->{'db.key'})) {
 		if($fix) {
 			App::SimpleBackuper::BackupDB($options, $state);
 		} else {
@@ -50,7 +50,7 @@ sub StorageCheck {
 		
 		foreach my $block_id (keys %blocks2delete) {
 			my $block = $state->{db}->{blocks}->find_row({ id => $block_id });
-			print "Removing block # $block_id:\n";
+			print "Removing block # $block_id\n";
 			App::SimpleBackuper::_BlockDelete($options, $state, $block, $blocks_info->{$block_id}->[2]);
 		}
 		App::SimpleBackuper::BackupDB($options, $state);

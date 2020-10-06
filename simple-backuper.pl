@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+package App::SimpleBackuper;
+
 use strict;
 use warnings;
 use feature ':5.'.substr($], 3, 2);
@@ -39,7 +41,7 @@ GetOptions(
 
 my $command = shift;
 
-$options{cfg} //= '~/.simple-backuper/config' if grep {$command eq $_} qw(backup info storage-check storage-fix);
+$options{cfg} //= '~/.simple-backuper/config' if $command and grep {$command eq $_} qw(backup info storage-check storage-fix);
 
 my %state = (profile => {total => - Time::HiRes::time});
 
@@ -92,6 +94,16 @@ if($options{cfg}) {
 	$options{db} ||= '~/.simple-backuper/db';
 	$options{db} =~ s/^~/(getpwuid($>))[7]/e;
 	
+	if(! -e $options{db} and $command and grep {$command eq $_} qw(backup storage-check storage-fix)) {
+		print "Initializing new database...\t";
+		my $db_file = App::SimpleBackuper::RegularFile->new($options{db}, \%options);
+		$db_file->set_write_mode();
+		$db_file->data_ref( App::SimpleBackuper::DB->new()->dump() );
+		$db_file->compress();
+		$db_file->write();
+		print "done.\n";
+	}
+	
 	if(-e $options{db}) {
 		print "Loading database...\t" if $options{verbose};
 		my $db_file = App::SimpleBackuper::RegularFile->new($options{db}, \%options);
@@ -102,9 +114,7 @@ if($options{cfg}) {
 		$state{profile}->{load_db} -= Time::HiRes::time();
 		$state{db} = App::SimpleBackuper::DB->new($db_file->data_ref);
 		$state{profile}->{load_db} += Time::HiRes::time();
-		print "OK\n" if $options{verbose};
-	} else {
-		$state{db} = App::SimpleBackuper::DB->new();
+		print "done.\n" if $options{verbose};
 	}
 }
 
@@ -166,6 +176,8 @@ elsif($command eq 'backup') {
 			printf "% 10s\t%s\n", fmt_weight($_->{weight}), $_->{path} foreach @{ $state{longheaviweightest_filesest_files} };
 		}
 	}
+	
+	App::SimpleBackuper::StorageCheck(\%options, \%state);
 }
 elsif($command eq 'info') {
 	use Fcntl ':mode'; # For S_ISDIR & same	
