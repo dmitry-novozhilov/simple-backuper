@@ -173,7 +173,7 @@ elsif($command eq 'backup') {
 		
 		if($state{heaviweightest_files}) {
 			print "Top ".@{ $state{heaviweightest_files} }." heaviweightest files:\n";
-			printf "% 10s\t%s\n", fmt_weight($_->{weight}), $_->{path} foreach @{ $state{longheaviweightest_filesest_files} };
+			printf "% 10s\t%s\n", fmt_weight($_->{weight}), $_->{path} foreach @{ $state{heaviweightest_files} };
 		}
 	}
 	
