@@ -228,6 +228,10 @@ sub _file_proc {
 		$file = $files->find_by_parent_id_name($task->[2], $filename);
 		if($file) {
 			print ", is old file #$file->{id}" if $options->{verbose};
+			if($file->{versions}->[-1]->{backup_id_max} == $state->{last_backup_id}) {
+				print ", is already backuped.\n";
+				return;
+			}
 		} else {
 			$file = {
 				parent_id	=> $task->[2],

@@ -94,7 +94,7 @@ if($options{cfg}) {
 	$options{db} ||= '~/.simple-backuper/db';
 	$options{db} =~ s/^~/(getpwuid($>))[7]/e;
 	
-	if(! -e $options{db} and $command and grep {$command eq $_} qw(backup storage-check storage-fix)) {
+	if(! -e $options{db} and $command and grep {$command eq $_} qw(backup storage-check storage-fix stats)) {
 		print "Initializing new database...\t";
 		my $db_file = App::SimpleBackuper::RegularFile->new($options{db}, \%options);
 		$db_file->set_write_mode();
@@ -274,6 +274,14 @@ elsif($command eq 'restore-db') {
 	App::SimpleBackuper::RestoreDB(\%options, \%state);
 }
 # TODO: статистика: кол-во бекапов, кол-во бекапов без единого удалённого файла, % файлов в каждом бекапе
+elsif($command eq 'stats') {
+	App::SimpleBackuper::_print_table([
+		['name', 'max files cnt', 'current files cnt', '%'],
+		map {[ $_->{name}, $_->{max_files_cnt}, $_->{files_cnt}, int($_->{files_cnt} / $_->{max_files_cnt} * 100).'%' ]}
+			map {$state{db}->{backups}->unpack($_)}
+			@{ $state{db}->{backups} }
+	]);
+}
 elsif($command) {
 	usage("Unknown command $command");
 }
@@ -290,6 +298,7 @@ COMMANDS:
     restore-db    - fetch from storage & decrypt database. Required options: --storage --priv-key
 	storage-check - check for existents all data on storage with local database.                    Possible option: --cfg
 	storage-fix   - fix local database for loosen data and remove unknown extra files from storage. Possible option: --cfg
+    stats         - statistics about files count in backups.                                        Possible options: --cfg, --db
 
 OPTIONS:
     --cfg %path%            - path to config file (see below). (default is ~/.simple-backuper/config)

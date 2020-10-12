@@ -40,7 +40,8 @@ sub fmt_time {
 	my $days = int($hours / 24);
 	return sprintf "%02d:%02d:%02d", $hours, $minutes, $seconds if ! $days;
 	
-	return sprintf "%dd %02d:%02d%02d", $days, $hours, $minutes, $seconds;
+	$hours -= $days * 24;
+	return sprintf "%dd %02d:%02d:%02d", $days, $hours, $minutes, $seconds;
 }
 
 use MIME::Base64;
