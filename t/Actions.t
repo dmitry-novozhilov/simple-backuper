@@ -159,4 +159,4 @@ it 'most common workflow' => sub {
 	App::SimpleBackuper::Backup({%options, space_limit => 700, 'backup-name' => 'test4'}, \%state);
 };
 
-1;
+runtests unless caller;

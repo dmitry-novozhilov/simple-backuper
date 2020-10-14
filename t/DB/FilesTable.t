@@ -80,4 +80,4 @@ describe FilesTable => sub {
 	};
 };
 
-1;
+runtests unless caller;

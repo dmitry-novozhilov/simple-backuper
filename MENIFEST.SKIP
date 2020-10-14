@@ -1,0 +1,12 @@
+blib
+\.git
+Makefile$
+Makefile\.mk$
+Makefile\.bin\.cfg$
+Makefile\.cfg$
+MANIFEST.bak
+MYMETA
+pm_to_lib
+\.tgz$
+\.deb$
+description-pak

@@ -28,4 +28,4 @@ describe RegularFile => sub {
 	};
 };
 
-1;
+runtests unless caller;

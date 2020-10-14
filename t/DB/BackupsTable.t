@@ -19,4 +19,4 @@ describe BackupsTable => sub {
 	};
 };
 
-1;
+runtests unless caller;

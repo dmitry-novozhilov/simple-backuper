@@ -52,4 +52,4 @@ describe BaseTable => sub {
 	};
 };
 
-1;
+runtests unless caller;

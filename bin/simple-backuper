@@ -118,7 +118,7 @@ if($options{cfg}) {
 	}
 }
 
-if($options{storage}) {
+if($options{storage} and grep {$command eq $_} qw(backup restore storage-check storage-fix)) {
 	if($options{storage} =~ /^[^:]+:/) {
 		$state{storage} = App::SimpleBackuper::StorageSFTP->new( $options{storage} );
 	}
