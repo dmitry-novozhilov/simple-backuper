@@ -36,8 +36,8 @@ sub Info {
 		} } @{ $parent_file->{versions} } ],
 		subfiles => [ map { {
 			name			=> ($_->{name} eq '' ? '/' : $_->{name}),
-			newest_backup	=> $backups->find_row({id => $_->{versions}->[-1]->{backup_id_min} })->{name},
-			oldest_backup	=> $backups->find_row({id => $_->{versions}->[0]->{backup_id_max} })->{name},
+			newest_backup	=> $backups->find_row({id => $_->{versions}->[-1]->{backup_id_max} })->{name},
+			oldest_backup	=> $backups->find_row({id => $_->{versions}->[0]->{backup_id_min} })->{name},
 		} } sort {$a->{name} cmp $b->{name}} map {@$_} $files->find_all({ parent_id => $parent_file->{id} })],
 	};
 }

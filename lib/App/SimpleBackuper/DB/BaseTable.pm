@@ -3,7 +3,7 @@ package App::SimpleBackuper::DB::BaseTable;
 use strict;
 use warnings FATAL => qw( all );
 use Carp;
-use App::SimpleBackuper::_linedump;
+use Data::Dumper;
 
 sub new { bless [] => shift }
 
@@ -196,41 +196,15 @@ sub upsert {
 	return $self;
 }
 
-=pod
-sub insert {
-	my($self, $data) = @_;
-	
-	$data = $self->pack($data) if ref($data);
-	
-	my($from, $to) = $self->_find($data);
-	die "Value ".App::SimpleBackuper::_linedump( $self->unpack($data))." already exists in $self" if $to >= $from;
-	
-	splice(@$self, $from, 0, $data);
-	
-	return $self;
-}
-=cut
-
 sub delete {
 	my($self, $row) = @_;
 	
 	my($from, $to) = $self->_find($row);
-	confess "Value ".App::SimpleBackuper::_linedump( $row )." wasn't found in $self" if $to < $from;
+	confess "Value ".Data::Dumper->new($row)->Indent(0)->Terse(1)->Pair('=>')->Quotekeys(0)->Sortkeys(1)->Dump()." wasn't found in $self" if $to < $from;
 	splice(@$self, $from, $to - $from + 1);
 	
 	return $self;
 }
-
-=pod
-sub update {
-	my($self, $search_row, $data) = @_;
-	
-	my($from, $to) = $self->_find( $row );
-	die "Value ".App::SimpleBackuper::_linedump( $row )." wasn't found in $self" if $to < $from;
-	die "Can't update many rows to one row" if $to > $from;
-	$self->[ $from ] = $self->pack( $data );
-}
-=cut
 
 use App::SimpleBackuper::DB::Packer;
 sub packer { shift; App::SimpleBackuper::DB::Packer->new( @_ ) }

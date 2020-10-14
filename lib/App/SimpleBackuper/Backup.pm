@@ -7,7 +7,6 @@ use Carp;
 use Try::Tiny;
 use Time::HiRes qw(time);
 use App::SimpleBackuper::BackupDB;
-use App::SimpleBackuper::_linedump;
 use App::SimpleBackuper::_format;
 use App::SimpleBackuper::_BlockDelete;
 use App::SimpleBackuper::_BlocksInfo;

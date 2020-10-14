@@ -1,91 +1,111 @@
 # What's this
-**Simple-backuper** is a few short plain scripts just for backuping files and restoring it from backups.
+**Simple-backuper** is a simple tool for backuping files and restoring it from backups.
 
 # Benefits
-- Simplicity and transparency. One short and plain script for each task. Most programmers can understand it.
+- Simplicity and transparency. Few lib files and one short script. Most programmers can understand it.
 - Efficient use of disk space (incremental backup):
   - Automatic deduplication of parts of files (most modified files differ only partially).
-  - All files can be compressed with archivator (compression program and options may be configured).
+  - All files will be compressed with archivator (compression level may be configured).
   - Incremental backup format doesn't require initial data snapshot.
 - Security:
-  - All files can be encrypted with any crypt program (ex: gpg).
+  - All files will be encrypted with AES256 + RSA4096.
   - Encryption doing before data send to storage host.
-  - You can chose crypt algorythm, requires additional secret for decrypting (see [Installing](#installing)).
+  - For backuping you don't need to keep private RSA key accessible to this program. It needs only for restoring.
+  - Thus, even with the backup data, no one can get the source files from them. And also no one can fake a backup.
 - You can specify different priorities for any files.
-- For recover your backup you need only: access to storage host, your crypting keys and some backup options (see [Backuping](#backuping)).
-- Requires on storage host: ssh-server with support of standard commands (cat, mkdir, rm, etc...).
-- Requires on backuper host: perl, ssh-client, your favorite compress and crypt program (any linux distribution supports it, ~~and cygwin too!~~).
+- For recover your backup you need only: access to storage host, your crypting keys and some backup options.
+- You can backup to local directory or to remote sftp server.
+- Requires on backuper host: perl and some perl libs.
+- Requires on SFTP storage host: disk space only.
 
 # Installing
 
-- Get a code: `git clone https://github.com/dmitry-novozhilov/simple-backuper.git`
-- If you want to use gpg encryption, you need to create key: `gpg --full-generate-key` (but gpg4win configuring via GUI).
-- Create config file like this and save in somewhere on disk (ex: `~/.simple-backuper.conf.json`):
+You can install simple-backuper from CPAN (perl packages repository) or directly from github.
+
+## From CPAN
+`cpan install App::SimpleBackuper`
+
+## From GitHub
+
+- `git clone https://github.com/dmitry-novozhilov/simple-backuper.git`
+- `cd simple-backuper`
+- `make`
+- `perl Makefile.pl`
+- `sudo make install`
+
+# Configuring
+
+You need a configuration file. By default simple-backuper trying to read ~/.simple-backuper/config, but you can use other path.
+In this case you need specify --cfg option on all simple-backuper run.  
+This file is json with comments allowed. It can be like this:
 ```javascript
 {
-	// Where to be placed database file.
-	db_file:		"~/path/to/database-with-metainfo-about-backuped-files.db",
-	// Command to prepare data to store.
-	// It must fetch source data in stdin and put ready-to-store data to stdout.
-	data_proc_before_store_cmd: "xz --compress -9 --stdout --memlimit=1GiB | gpg --encrypt -z 0 --recipient YOUR_KEY_NAME_HERE",
-	// Paths to backup with priorities.
-	// For equal other conditions, files with a higher priority will be stored longer.
-	// Zero priority deprecate to backup files.
-	source: {
-		// For example:
-		"~":					5,
-		"~/docs":				20,
-		"~/.cache":				0,
-		"~/.local/share/Trash":	0,
-		"~/.thumbnails":		0,
-	},
-	// Where to store backups
-	destination: {
-		// It's optional. Without this option backups will be stored to path on local machine.
-		// Ssh client must be configured to login on this ssh server by private key without password, because this name will be used in ssh commands.
-		// And for speedup uploading many little files from linux machine you can configure ControlMaster, ControlPersist and ControlPath in ssh client.
-		host: 'my-backup-ssh-server',
-		// Where to place backup data
-		path: '~/backup/',
-		// Disk usage limit in Gb
-		weight_limit_gb: 1000,
-	},
+    "db":                   "~/.simple-backuper/db",        // This database file changes every new backup. ~/.simple-backuper/db - is a default value.
+    
+    "compression_level":    9,                              // LZMA algorythm supports levels 1 to 9
+    
+    "public_key":           "~/.simple-backuper/key.pub",   // This key using with "backup" command.
+                                                            // For restore-db command you need to use private key of this public key.
+                                                            
+                                                            // Creating new pair of keys:
+                                                            // Private (for restoring): openssl genrsa -out ~/.simple-backuper/key 4096
+                                                            // Public (for backuping): openssl rsa -in ~/.simple-backuper/key -pubout > ~/.simple-backuper/key.pub
+                                                            // Keep the private key as your most valuable asset. Copy it to a safe place.
+                                                            // It is desirable not in the backup storage, otherwise it will make it possible to use the backup data for someone other than you.
+    
+    "storage":              "/mnt/backups",                 // Use "host:path" or "user@host:path" for remote SFTP storage.
+                                                            // All transfered data already encrypted.
+                                                            // If you choose SFTP, make sure that this SFTP server works without a password.
+                                                            // This can be configured with ~/.ssh/ config and ssh key-based authorization.
+    
+    "space_limit":          "100G",                         // Maximum of disc space on storage.
+                                                            // While this limit has been reached, simple-backuper deletes the oldest and lowest priority file.
+                                                            // K means kilobytes, M - megabytes, G - gygabytes, T - terabytes.
+    
+    "files": {                                              // Files globs with it's priorityes.
+        "~":                            5,
+        "~/.gnupg":                     50,                 // The higher the priority, the less likely it is to delete these files.
+        "~/.bash_history":              0,                  // Zero priority prohibits backup. Use it for exceptions.
+        "~/.cache":                     0,
+        "~/.local/share/Trash":         0,
+        "~/.mozilla/firefox/*/Cache":   0,
+        "~/.thumbnails":                0,
+    }
 }
 ```
-- Example `~/.ssh/config`, if you need:
-```
-Host my-backup-ssh-server
-  Hostname 1.2.3.4
-  ControlMaster auto
-  ControlPersist 1m
-  ControlPath /tmp/ssh-control-master/%r@%h:%p
-```
-- Backup manually a gpg keys, if you use gpg encryption!
 
-# Backuping
-- Create initial backup:
-  - `perl ./backuper.pl ~/.simple-backuper.conf.json initial`
-  - `~/.simple-backuper.conf.json` - is a path to your config;
-  - `initial` - is a name of first backup;
-  - Initial backup will take a lot of time.
-- Make a cron job (`crontab -e`) like this:
+# First (initial) backup
+
+After configuring you need to try backuping to check for it works:
+`simple-backuper backup --backup-name initial --verbose`  
+The initial backup will take a long time. It takes me more than a day.  
+The next backups will take much less time. Because usually only a small fraction of the files are changed.
+
+# Scheduled backups
+
+You can add to crontab next command:
 ```
-0 2 * * * perl /path/to/simple-backuper/backuper.pl /path/to/your-config.conf.json `date -Idate`
+0 0 * * * simple-backuper backup --backup-name `date -Idate`
 ```
+It creates backup named as date every day.
+
+# Logging
+
+Simple backuper is so simple that it does not log itself. You can write logs from STDOUT & STDERR:
+```
+0 0 * * * simple-backuper backup --backup-name `date -Idate` 2>&1 >> simple-backuper.log
+```
+
 # Recovering
-- Ensure a gpg key aviability if you using gpg encryption.
-- Install backuper if your machine have not it (see [Installing](#installing)).
-- Configore ssh client for access by private key without password.
-- Download from storage host a database. It placed to file `db` in backup path.
-(ex: `scp my-backup-ssh-server:backup/db ./simple-backuper.db`)
-- Decrypt or/and decompress a database if you use encryption or/and compression. (ex: `mv ./simple-backuper.db ./simple-backuper.db.xz.enc; gpg --decrypt ./simple-backuper.db.xz.enc | xz --decompress > ./simple-backuper.db`)
-- List the backup content: `perl ./restore.pl --db ./simple-backuper.db`
-- You can chose any folder in backups for listing or for restoring ny specifying `--from`: `perl ./restore.pl --db ./simple-backuper.db --from YOUR_PATH`
-- Select one of backup dirs
-- Start restoring: `pelr ./restore.pl --db ./simple-backuper.db --from YOUR_PATH --name BACKUP_NAME --restore --to PATH_ON_LOCAL_FILESYSTEM --storage-path my-backup-ssh-server:backup --proc-cmd 'gpg --decrypt 2>/dev/null | xz --decompress'`
 
-# ~~Setup on cygwin~~
-- ~~Install cygwin packages `git`, `xz` and `perl-Text-Glob`.~~
-- ~~If you will using gpg, install gpg4win (you can find link on official gnupg site: https://gnupg.org/download/index.html).  
-When recovering you must serve running "kleopatra" - is a part of gpp4win.~~
-- Cygwin doesn't supported now. Windows support is in progress.
+1. The first thing you need is a database file. If you have it, move to next step. Otherwise you can restore it from your backup storage:  
+   `simple-backuper restore-db --storage YOUR_STORAGE --priv-key KEY`  
+   YOUR_STORAGE - is your `storage` option from config. For example `my_ssh_backup_host:/path/to/backup/`.  
+   KEY - is path to your private key!
+2. Chose backup and files by exploring you storage by commands like `simple-backuper info`, `simple-backuper info /home`,..
+3. Try to dry run of restoring files: `simple-backuper restore --path CHOSED_PATH --backup-name CHOSED_BACKUP --storage YOUR_STORAGE --destination TARGET_DIR`  
+   CHOSED_PATH - is path in backup to restoring files.  
+   CHOSED_BACKUP - is what version of your files must be restored.  
+   YOUR_STORAGE - is your `storage` option from config. For example `my_ssh_backup_host:/path/to/backup/`.  
+   TARGET_DIR - is dir for restored files.
+4. If all ok, run restoring files with same command and `--write` argument!

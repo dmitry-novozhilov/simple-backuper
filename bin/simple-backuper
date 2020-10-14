@@ -41,7 +41,7 @@ GetOptions(
 
 my $command = shift;
 
-$options{cfg} //= '~/.simple-backuper/config' if $command and grep {$command eq $_} qw(backup info storage-check storage-fix);
+$options{cfg} //= '~/.simple-backuper/config' if $command and grep {$command eq $_} qw(backup info storage-check storage-fix stats);
 
 my %state = (profile => {total => - Time::HiRes::time});
 
@@ -315,24 +315,26 @@ For EXAMPLES see README.md
 
 CONFIG file must be a json-file like this:
 {
-    "db":                   "~/.simple-backuper/db",        // This database file changes every new backup. It needs 
+    "db":                   "~/.simple-backuper/db",        // This database file changes every new backup. ~/.simple-backuper/db - is a default value.
     
     "compression_level":    9,                              // LZMA algorythm supports levels 1 to 9
     
-    "public_key":           "~/.simple-backuper/key.pub",   // This key using only with "backup" command.
-                                                            // For decrypt with restore or listing commands you need
-                                                            // use private key of this public key.
+    "public_key":           "~/.simple-backuper/key.pub",   // This key using with "backup" command.
+                                                            // For restore-db command you need to use private key of this public key.
                                                             
                                                             // Creating new pair of keys:
                                                             // Private (for restoring): openssl genrsa -out ~/.simple-backuper/key 4096
                                                             // Public (for backuping): openssl rsa -in ~/.simple-backuper/key -pubout > ~/.simple-backuper/key.pub
+                                                            // Keep the private key as your most valuable asset. Copy it to a safe place.
+                                                            // It is desirable not in the backup storage, otherwise it will make it possible to use the backup data for someone other than you.
     
     "storage":              "/mnt/backups",                 // Use "host:path" or "user@host:path" for remote SFTP storage.
-                                                            // All transfered data already encrypted with crypt_key.
+                                                            // All transfered data already encrypted.
+                                                            // If you choose SFTP, make sure that this SFTP server works without a password.
+                                                            // This can be configured with ~/.ssh/ config and ssh key-based authorization.
     
     "space_limit":          "100G",                         // Maximum of disc space on storage.
-                                                            // While this limit has bean reached,
-                                                            // simple-backuper deletes the oldest and lowest priority file.
+                                                            // While this limit has been reached, simple-backuper deletes the oldest and lowest priority file.
                                                             // K means kilobytes, M - megabytes, G - gygabytes, T - terabytes.
     
     "files": {                                              // Files globs with it's priorityes.

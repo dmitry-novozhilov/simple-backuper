@@ -3,7 +3,6 @@ package App::SimpleBackuper::DB;
 use strict;
 use warnings;
 use Const::Fast;
-use App::SimpleBackuper::_linedump;
 use App::SimpleBackuper::DB::BackupsTable;
 use App::SimpleBackuper::DB::FilesTable;
 use App::SimpleBackuper::DB::PartsTable;
@@ -41,7 +40,7 @@ sub new {
 		$self->{dump} = $$dump_ref;
 		$self->{offset} = 0;
 		
-		my($format_version, $backups_cnt, $files_cnt, $uids_gids_cnt, $parts_cnt) = $self->_unpack_tmpl("JJJJ");
+		my($format_version, $backups_cnt, $files_cnt, $uids_gids_cnt) = $self->_unpack_tmpl("JJJJ");
 		
 		die "Unsupported database format version $format_version" if $format_version != $FORMAT_VERSION;
 		
@@ -52,13 +51,11 @@ sub new {
 		delete $self->{ $_ } foreach qw(dump offset);
 	}
 	
-	
 	my %backups_files_cnt = map {$self->{backups}->unpack($_)->{id} => 0} @{ $self->{backups} };
 	for my $q (0 .. $#{ $self->{files} }) {
 		my $file = $self->{files}->unpack( $self->{files}->[ $q ] );
 		
 		foreach my $version (@{ $file->{versions} }) {
-			
 			foreach my $backup_id ( $version->{backup_id_min} .. $version->{backup_id_max} ) {
 				$backups_files_cnt{ $backup_id }++;
 			}
