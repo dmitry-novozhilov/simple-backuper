@@ -1,11 +1,13 @@
-0.2.1	2020-10-15
+0.2.2 2020-10-15
 	- Some kwalitee improvements
-0.2.0	2020-10-15
+0.2.1 2020-10-15
+	- Some kwalitee improvements
+0.2.0 2020-10-15
 	- Version bump
-0.1.1	2020-10-15
+0.1.1 2020-10-15
 	- Fix cpan module requirements.
 	- POD moved to .pod-file.
-0.1		2020-10-12
+0.1   2020-10-12
 	- Fully rewrited app.
 	- Data encryption on host with backuped data.
 	- Data compression with LZMA algorythm.
