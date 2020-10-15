@@ -47,7 +47,7 @@ sub Backup {
 	$state->{$_} = 0 foreach qw(last_backup_id last_file_id last_block_id bytes_processed bytes_in_last_backup total_weight);
 	
 	print "Preparing to backup: " if $options->{verbose};
-	$state->{profile}->{init_ids} = -time;
+	$state->{profile}->{init_ids} = - time();
 	foreach (@$backups) {
 		my $id = $backups->unpack($_)->{id};
 		$state->{last_backup_id} = $id if ! $state->{last_backup_id} or $state->{last_backup_id} < $id;

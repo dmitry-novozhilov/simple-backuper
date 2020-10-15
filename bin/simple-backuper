@@ -296,8 +296,8 @@ COMMANDS:
     restore       - restores files from backup.        Required options: --path, --backup-name, --storage, --destination.
                                                        Possible options: --db, --write.
     restore-db    - fetch from storage & decrypt database. Required options: --storage --priv-key
-	storage-check - check for existents all data on storage with local database.                    Possible option: --cfg
-	storage-fix   - fix local database for loosen data and remove unknown extra files from storage. Possible option: --cfg
+    storage-check - check for existents all data on storage with local database.                    Possible option: --cfg
+    storage-fix   - fix local database for loosen data and remove unknown extra files from storage. Possible option: --cfg
     stats         - statistics about files count in backups.                                        Possible options: --cfg, --db
 
 OPTIONS:
@@ -306,7 +306,7 @@ OPTIONS:
                               This file need for any operations. It copied to backup storage dir each creating backup time.
     --backup-name %name%    - name of creating, listing or restoring backup.
     --path %path%           - %path% of files in backup. (default: /)
-    --priv-key %path%	    - %path% to private key file for decryption.
+    --priv-key %path%        - %path% to private key file for decryption.
     --storage %path%        - %path% to storage dir. Remote SFTP path must begins with '%host%:'.
     --destination %path%    - destination path to restore files.
     --write                 - Without this option restoring use dry run.
@@ -315,32 +315,37 @@ For EXAMPLES see README.md
 
 CONFIG file must be a json-file like this:
 {
-    "db":                   "~/.simple-backuper/db",        // This database file changes every new backup. ~/.simple-backuper/db - is a default value.
+    "db":                   "~/.simple-backuper/db",
+    // This database file changes every new backup. ~/.simple-backuper/db - is a default value.
     
-    "compression_level":    9,                              // LZMA algorythm supports levels 1 to 9
+    "compression_level":    9,
+    // LZMA algorythm supports levels 1 to 9
     
-    "public_key":           "~/.simple-backuper/key.pub",   // This key using with "backup" command.
-                                                            // For restore-db command you need to use private key of this public key.
-                                                            
-                                                            // Creating new pair of keys:
-                                                            // Private (for restoring): openssl genrsa -out ~/.simple-backuper/key 4096
-                                                            // Public (for backuping): openssl rsa -in ~/.simple-backuper/key -pubout > ~/.simple-backuper/key.pub
-                                                            // Keep the private key as your most valuable asset. Copy it to a safe place.
-                                                            // It is desirable not in the backup storage, otherwise it will make it possible to use the backup data for someone other than you.
+    "public_key":           "~/.simple-backuper/key.pub",
+    // This key using with "backup" command.
+    // For restore-db command you need to use private key of this public key.
     
-    "storage":              "/mnt/backups",                 // Use "host:path" or "user@host:path" for remote SFTP storage.
-                                                            // All transfered data already encrypted.
-                                                            // If you choose SFTP, make sure that this SFTP server works without a password.
-                                                            // This can be configured with ~/.ssh/ config and ssh key-based authorization.
+    // Creating new pair of keys:
+    // Private (for restoring): openssl genrsa -out ~/.simple-backuper/key 4096
+    // Public (for backuping): openssl rsa -in ~/.simple-backuper/key -pubout > ~/.simple-backuper/key.pub
+    // Keep the private key as your most valuable asset. Copy it to a safe place.
+    // It is desirable not in the backup storage, otherwise it will make it possible to use the backup data for someone other than you.
     
-    "space_limit":          "100G",                         // Maximum of disc space on storage.
-                                                            // While this limit has been reached, simple-backuper deletes the oldest and lowest priority file.
-                                                            // K means kilobytes, M - megabytes, G - gygabytes, T - terabytes.
+    "storage":              "/mnt/backups",
+    // Use "host:path" or "user@host:path" for remote SFTP storage.
+    // All transfered data already encrypted.
+    // If you choose SFTP, make sure that this SFTP server works without a password.
+    // This can be configured with ~/.ssh/ config and ssh key-based authorization.
     
-    "files": {                                              // Files globs with it's priorityes.
+    "space_limit":          "100G",
+    // Maximum of disc space on storage.
+    // While this limit has been reached, simple-backuper deletes the oldest and lowest priority file.
+    // K means kilobytes, M - megabytes, G - gygabytes, T - terabytes.
+    
+    "files": {                              // Files globs with it's priorityes.
         "~":                            5,
-        "~/.gnupg":                     50,                 // The higher the priority, the less likely it is to delete these files.
-        "~/.bash_history":              0,                  // Zero priority prohibits backup. Use it for exceptions.
+        "~/.gnupg":                     50, // The higher the priority, the less likely it is to delete these files.
+        "~/.bash_history":              0,  // Zero priority prohibits backup. Use it for exceptions.
         "~/.cache":                     0,
         "~/.local/share/Trash":         0,
         "~/.mozilla/firefox/*/Cache":   0,

@@ -84,8 +84,8 @@ it 'most common workflow' => sub {
 	
 	my $result = App::SimpleBackuper::Info({%options, path => '/tmp/simple-backuper-test/src'}, \%state);
 	is_deeply $result->{subfiles}, [ { name => 'a.file', oldest_backup => 'test', newest_backup => 'test'} ];
-	is $result->{versions}->[0]->{user}, scalar getpwuid($<);
-	is $result->{versions}->[0]->{group}, scalar getgrgid($();
+	is $result->{versions}->[0]->{user}, scalar getpwuid($>);
+	is $result->{versions}->[0]->{group}, scalar getgrgid($));
 	is_deeply $result->{versions}->[0]->{backups}, ['test'];
 	
 	

@@ -5,6 +5,8 @@ use warnings;
 use ExtUtils::MakeMaker;
 use ExtUtils::Manifest qw(mkmanifest);
 
+os_unsupported if $^O eq "MSWin32";
+
 mkmanifest();
 
 WriteMakefile(
@@ -18,6 +20,7 @@ WriteMakefile(
 	EXE_FILES		=> ['bin/simple-backuper'],
 	PREREQ_PM		=> {
 		'Crypt::Rijndael'		=> 0,
+		'Crypt::OpenSSL::RSA'	=> 0,
 		'Compress::Raw::Lzma'	=> 0,
 		'Digest::SHA'			=> 0,
 		'Text::Glob'			=> 0,
@@ -26,6 +29,7 @@ WriteMakefile(
 		'Const::Fast'			=> 0,
 		'MIME::Base64'			=> 0,
 		'JSON::PP'				=> 0,
+		'POSIX'					=> 0,
 	},
 	META_MERGE		=> {
 		'meta-spec'		=> { version => 2 },
