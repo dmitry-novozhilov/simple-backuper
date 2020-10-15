@@ -189,3 +189,7 @@ TARGET_DIR - is dir for restored files.
 =item 4. If all ok, run restoring files with same command and C<--write> argument!
 
 =back
+
+=head1 LICENSE
+
+GPLv3 (see LICENSE file)

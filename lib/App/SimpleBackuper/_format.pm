@@ -45,6 +45,6 @@ sub fmt_time {
 }
 
 use MIME::Base64;
-sub fmt_hex2base64 { MIME::Base64::encode_base64url pack "h*", shift }
+sub fmt_hex2base64 { MIME::Base64::encode_base64url(pack "h*", shift) }
 
 1;

@@ -18,6 +18,7 @@ WriteMakefile(
 	test			=> {TESTS => 't/*.t t/*/*.t'},
 	TEST_REQUIRES	=> {'Test::Spec' => 0},
 	EXE_FILES		=> ['bin/simple-backuper'],
+	MIN_PERL_VERSION=> 5.014,
 	PREREQ_PM		=> {
 		'Crypt::Rijndael'		=> 0,
 		'Crypt::OpenSSL::RSA'	=> 0,
