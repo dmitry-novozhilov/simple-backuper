@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-B<simple-backuper> is a simple tool for backuping files and restoring it from backups.
+B<App::SimpleBackuper> (B<simple-backuper>) - is a simple tool for backuping files and restoring it from backups.
 
 =head1 Benefits
 
