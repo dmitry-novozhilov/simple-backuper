@@ -1,9 +1,13 @@
+0.2.3 2020-10-16
+	- Try to fix issue with failed test on comparing file owner in FreeBSD.
+	- Little bit POD improvement.
+	- Fix win32 exception in Makefile.PL.
 0.2.2 2020-10-15
-	- Some kwalitee improvements
+	- Some kwalitee improvements.
 0.2.1 2020-10-15
-	- Some kwalitee improvements
+	- Some kwalitee improvements.
 0.2.0 2020-10-15
-	- Version bump
+	- Version bump.
 0.1.1 2020-10-15
 	- Fix cpan module requirements.
 	- POD moved to .pod-file.
@@ -14,5 +18,4 @@
 	- Data deduplication with subfile graduation (incremental backup).
 	- Ssh and local FS backups location.
 	- Different files priorities.
-	
-
+	- Compact for RAM and for FS database.
