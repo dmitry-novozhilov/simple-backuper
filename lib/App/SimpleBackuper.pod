@@ -2,11 +2,7 @@
 
 =head1 NAME
 
-<<<<<<< HEAD
-L<simple-backuper|https://metacpan.org/pod/App::SimpleBackuper> - is a simple tool for backuping files and restoring it from backups.
-=======
-B<App::SimpleBackuper> (B<simple-backuper>) - is a simple tool for backuping files and restoring it from backups.
->>>>>>> a7d7f7e60e7bfca1eeb7a75d2f4fe42387486625
+L<App::SimpleBackuper|https://metacpan.org/pod/App::SimpleBackuper> - is a simple tool for backuping files and restoring it from backups.
 
 =head1 Benefits
 
