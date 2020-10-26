@@ -1,4 +1,8 @@
-0.2.7 2020-10-20
+0.2.9 2020-10-26
+	- Fix merging blocks of file parts.
+0.2.8 2020-10-22
+	- Minor POD fix.
+0.2.7 2020-10-21
 	- Fix case with ignoring some dirs to backup.
 	- Minor storage integrity report fix.
 	- Minor verbosity output fix.
