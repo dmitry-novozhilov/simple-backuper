@@ -1,3 +1,6 @@
+0.2.11	2020-01-02
+	- Do not restoring mode and ownership of symlinks.
+	- Debug OOM for openbsd.
 0.2.10	2020-10-31
 	- Minor docs fix.
 	- Minor fix in stats command.

@@ -24,6 +24,8 @@ it 'most common workflow' => sub {
 	print $fh "1" x 2_000_000;
 	close($fh);
 	
+	print "free memory: ".`free -bw`;
+	
 	
 	my $priv_key = `openssl genrsa 2>/dev/null`;
 	my $public_key;
