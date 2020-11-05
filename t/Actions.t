@@ -7,6 +7,7 @@ use IPC::Open2;
 use Crypt::OpenSSL::RSA;
 use File::Path qw(make_path);
 use Data::Dumper;
+use Sys::MemInfo;
 use App::SimpleBackuper::DB;
 use App::SimpleBackuper::StorageLocal;
 use App::SimpleBackuper::Backup;
@@ -24,7 +25,7 @@ it 'most common workflow' => sub {
 	print $fh "1" x 2_000_000;
 	close($fh);
 	
-	print "free memory: ".`free -bw`;
+	print "MemInfo: ".join(', ', map {"$_=".Sys::MemInfo::get($_)} qw(freemem totalmem freeswap totalswap))."\n";
 	
 	
 	my $priv_key = `openssl genrsa 2>/dev/null`;

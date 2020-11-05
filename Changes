@@ -1,3 +1,6 @@
+0.2.12	2020-01-05
+	- Removed requirements included to perl core.
+	- Debug OOM for openbsd.
 0.2.11	2020-01-02
 	- Do not restoring mode and ownership of symlinks.
 	- Debug OOM for openbsd.

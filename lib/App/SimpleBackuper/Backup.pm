@@ -411,7 +411,6 @@ sub _file_proc {
 					
 					print fmt_weight($read) if $options->{verbose};
 					
-					print " rss mem ".(split(/\s+/, `cat /proc/$$/statm`))[1] if $options->{verbose};
 					$state->{profile}->{math} -= time;
 					$state->{profile}->{math_compress} -= time;
 					$file_time_spent -= time;
@@ -419,7 +418,6 @@ sub _file_proc {
 					$file_time_spent += time;
 					$state->{profile}->{math} += time;
 					$state->{profile}->{math_compress} += time;
-					print " rss mem ".(split(/\s+/, `cat /proc/$$/statm`))[1] if $options->{verbose};
 					print ' compressed to '.fmt_weight($reg_file->size) if $options->{verbose};
 					
 					($part{aes_key}, $part{aes_iv}) = $reg_file->gen_keys();
