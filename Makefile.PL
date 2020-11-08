@@ -16,10 +16,7 @@ WriteMakefile(
     VERSION_FROM    => 'lib/App/SimpleBackuper.pm',
 	LICENSE			=> 'gpl_3',
 	test			=> {TESTS => 't/*.t t/*/*.t'},
-	TEST_REQUIRES	=> {
-		'Test::Spec'	=> 0,
-		'Sys::MemInfo'	=> 0,
-	},
+	TEST_REQUIRES	=> {'Test::Spec' => 0},
 	EXE_FILES		=> ['bin/simple-backuper'],
 	MIN_PERL_VERSION=> 5.014,
 	PREREQ_PM		=> {

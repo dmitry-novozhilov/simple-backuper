@@ -7,7 +7,6 @@ use IPC::Open2;
 use Crypt::OpenSSL::RSA;
 use File::Path qw(make_path);
 use Data::Dumper;
-use Sys::MemInfo;
 use App::SimpleBackuper::DB;
 use App::SimpleBackuper::StorageLocal;
 use App::SimpleBackuper::Backup;
@@ -24,8 +23,6 @@ it 'most common workflow' => sub {
 	open(my $fh, '>', '/tmp/simple-backuper-test/src/a.file') or die "Can't write test file: $!";
 	print $fh "1" x 2_000_000;
 	close($fh);
-	
-	print "MemInfo: ".join(', ', map {"$_=".Sys::MemInfo::get($_)} qw(freemem totalmem freeswap totalswap))."\n";
 	
 	
 	my $priv_key = `openssl genrsa 2>/dev/null`;
@@ -47,7 +44,7 @@ it 'most common workflow' => sub {
 			'/tmp/simple-backuper-test/src'	=> 5,
 		},
 		'backup-name'		=> 'test',
-		verbose				=> 1,
+		quiet				=> 1,
 	);
 	
 	my %state = (
