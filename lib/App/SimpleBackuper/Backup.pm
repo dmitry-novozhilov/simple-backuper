@@ -72,7 +72,9 @@ sub Backup {
 	$state->{profile}->{init_ids} += time;
 	
 	print "total weight " if $options->{verbose};
-	$state->{total_weight} += $parts->unpack($_)->{size} foreach @$parts;
+	for(my $q = 0; $q <= $#$parts; $q++) {
+		$state->{total_weight} += $parts->unpack($parts->[ $q ])->{size};
+	}
 	print fmt_weight($state->{total_weight}).", " if $options->{verbose};
 	
 	my $cur_backup = {name => $options->{'backup-name'}, id => ++$state->{last_backup_id}, files_cnt => 0, max_files_cnt => 0};

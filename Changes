@@ -1,3 +1,7 @@
+0.2.17	2020-11-26
+	- Reduced memory utilization at start.
+	- Undebug.
+	- Zero compression level in tests.
 0.2.16	2020-11-21
 	- Fix backuping crash when dir from config doesn't exists.
 0.2.15	2020-11-15
