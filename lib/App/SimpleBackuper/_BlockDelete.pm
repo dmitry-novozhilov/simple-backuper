@@ -71,7 +71,7 @@ sub _BlockDelete {
 	
 	$blocks->delete({ id => $block->{id} });
 	
-	my $deleted;
+	my $deleted = 0;
 	foreach my $part (values %parts2delete) {
 		$state->{storage}->remove(fmt_hex2base64($part->{hash}));
 		$parts->delete({hash => $part->{hash}});
