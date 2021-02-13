@@ -9,4 +9,5 @@ pm_to_blib
 description-pak
 .idea
 *.iml
-
+/_Deparsed_XSubs.pm
+/App-SimpleBackuper-*.tar
