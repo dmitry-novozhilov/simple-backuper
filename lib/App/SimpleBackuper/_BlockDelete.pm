@@ -9,7 +9,7 @@ sub _BlockDelete {
 	my($backups, $files, $blocks, $parts) = @{ $state->{db} }{qw(backups files blocks parts)};
 	
 	my %parts2delete;
-		
+	
 	# Delete all from block
 	$state->{profile}->{db_delete_all_from_block} -= time;
 	
@@ -26,7 +26,7 @@ sub _BlockDelete {
             $found = 1;
 			
 			if($options->{verbose}) {
-				print "\t\t\tDeleting $full_path from ".
+				print "\t\tDeleting $full_path from ".
 					(
 						$version->{backup_id_min} == $version->{backup_id_max}
 						? "backup ".$backups->find_row({ id => $version->{backup_id_max} })->{name}
